@@ -6,7 +6,7 @@
     "author": "saulius.d3v",
     "options_page": "settings.html",
     "permissions": [
-      "tabs",
+      "activeTab",
       "storage",
       "webNavigation"
     ],

@@ -41,6 +41,7 @@ function isLightRequest(request) {
         // Prices
         'getLastUpadtedBuffPrice',
         'getIsUpdatingPrices',
+        'getPendingBroadcast',
         // License
         'activateLicense',
         'authCheck',
@@ -77,17 +78,6 @@ function processLightQueue() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console[getLogLevel(true)]("Background request: ", request.action);
     
-    // Check if the sender tab is still active/valid
-    if (sender.tab && sender.tab.id) {
-        chrome.tabs.get(sender.tab.id, (tab) => {
-            if (chrome.runtime.lastError) {
-                console[getLogLevel(false)]("Sender tab no longer exists:", chrome.runtime.lastError.message);
-                sendResponse({ success: false, message: "Tab no longer active" });
-                return;
-            }
-        });
-    }
-    
     if (isLightRequest(request)) {
         lightQueue.push({ request, sender, sendResponse });
         processLightQueue();
@@ -100,24 +90,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function handleRequest(request, sender, sendResponse, isHeavy) {
-    // Add connection check before processing
-    try {
-        if (sender.tab && sender.tab.id) {
-            await new Promise((resolve, reject) => {
-                chrome.tabs.get(sender.tab.id, (tab) => {
-                    if (chrome.runtime.lastError) {
-                        reject(new Error("Tab disconnected"));
-                    } else {
-                        resolve(tab);
-                    }
-                });
-            });
-        }
-    } catch (error) {
-        console[getLogLevel(false)]("Tab connection lost during request processing:", error.message);
-        sendResponse({ success: false, message: "Connection lost" });
-        return;
-    }
 
     switch (request.action) {
         // Api calls and item data updates
@@ -211,7 +183,7 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
                     coinRatioThreshold: request.coinRatioThreshold,
                     isSupplyEnabled: request.isSupplyEnabled,
                     supplyThreshold: request.supplyThreshold
-                });
+                }, sender.tab);
                 sendResponse({ success: true });
             } catch (error) {
                 console[getLogLevel(false)]("Error updating visibility by filters:", error.message);
@@ -228,7 +200,7 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
             }
             isDisablingScout = true;
             try {
-                await broadcastToCsgorollTabs({ action: request.action });
+                await broadcastToCsgorollTabs({ action: request.action }, sender.tab);
                 await repository.saveEnableExtension(false);
                 sendResponse({ success: true });
             } catch (error) {
@@ -245,9 +217,8 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
                 return;
             }
             isEnablingScout = true;
-            redirectToWithdrawPageIfOnHomepage();
             try {
-                await broadcastToCsgorollTabs({ action: request.action });
+                await broadcastToCsgorollTabs({ action: request.action }, sender.tab);
                 await repository.saveEnableExtension(true);
                 sendResponse({ success: true });
             } catch (error) {
@@ -360,6 +331,15 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
 
         case 'getIsUpdatingPrices':
             sendResponse({ success: true, message: isUpdatingPrices });
+            break;
+
+        case 'getPendingBroadcast':
+            const message = pendingBroadcastMessage;
+            if (message) {
+                // Clear the message after retrieving it once
+                pendingBroadcastMessage = null;
+            }
+            sendResponse({ success: true, message: message });
             break;
         // Auth/License/Steam
         case 'activateLicense':
@@ -486,30 +466,29 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
     }
 }
 
-async function broadcastToCsgorollTabs(message) {
-    const tabs = await new Promise((resolve, reject) => {
-        chrome.tabs.query({}, (tabs) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(tabs);
-            }
-        });
-    });
+// Store broadcast messages for content scripts to retrieve
+let pendingBroadcastMessage = null;
 
-    for (const tab of tabs) {
-        if (tab?.url && tab.url.includes("csgoroll.com")) {
-            chrome.tabs.sendMessage(tab.id, message);
+async function broadcastToCsgorollTabs(message, senderTab = null) {
+    // Store the message for content scripts to retrieve
+    pendingBroadcastMessage = message;
+    
+    // If we have a sender tab (user triggered action) send directly to that tab
+    if (senderTab && senderTab.id && senderTab.url && senderTab.url.includes("csgoroll.com")) {
+        try {
+            chrome.tabs.sendMessage(senderTab.id, message);
+        } catch (error) {
+            console[getLogLevel(false)]("Failed to send message to sender tab:", error.message);
         }
     }
+    
+    // For automatic updates (like price updates), content scripts will poll for updates
 }
 
 // used for instantly notifying the content script about the url change
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
     if (details.url && details.url.includes("csgoroll.com")) {
         console[getLogLevel(true)]("URL changed on CSGORoll tab:", details.url);
-
-        redirectToWithdrawPageIfOnHomepage();
 
         chrome.tabs.sendMessage(details.tabId, {
             action: 'urlChanged',
@@ -519,22 +498,6 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
         updatePrices();
     }
 });
-
-// Redirect if on the homepage due to different kind of loading in the homepage with load more button
-function redirectToWithdrawPageIfOnHomepage() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length === 0) return;
-
-        const currentTab = tabs[0];
-        const url = currentTab.url;
-
-        if (url === "https://www.csgoroll.com/") {
-            chrome.tabs.update(currentTab.id, {
-                url: "https://www.csgoroll.com/withdraw/csgo/p2p"
-            });
-        }
-    });
-}
 
 async function updatePrices() {
     if (isUpdatingPrices) {
