@@ -31,7 +31,11 @@ Visit [buffscout.com](https://buffscout.com/) for more information.
 
 3. Build the extension:
    ```bash
-   npm run build
+   npm run build:dev
+   
+   or
+
+   npm run build:prod
    ```
 
 4. Load it in your browser:
