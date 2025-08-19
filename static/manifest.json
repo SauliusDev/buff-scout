@@ -1,0 +1,48 @@
+{
+    "manifest_version": 3,
+    "name": "Buff Scout",
+    "version": "3.1.1",
+    "description": "See the Buff163 prices of CS skins on CSGORoll.com",
+    "author": "saulius.d3v",
+    "options_page": "settings.html",
+    "permissions": [
+      "tabs",
+      "storage",
+      "webNavigation"
+    ],
+    "host_permissions": [
+      "*://*.csgoroll.com/*",
+      "*://*.csgoempire.com/*",
+      "*://*.steamcommunity.com/*"
+    ],
+    "background": {
+      "service_worker": "background.js",
+      "type": "module"
+    },
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": "assets/dice_512.png",
+      "default_title": "Roll Scout"
+    },
+    "icons": {
+      "64": "assets/dice_512.png"
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://www.csgoroll.com/*"],
+        "js": ["csgoRoll.js"]
+      }
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "tippyjs-master/tippy.umd.min.js",
+          "tippyjs-master/tippy.css",
+          "assets/hide.png",
+          "assets/unhide.png"
+        ],
+        "matches": ["<all_urls>"]
+      }
+    ]
+}
+  

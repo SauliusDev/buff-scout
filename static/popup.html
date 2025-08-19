@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSGO Price Scout</title>
+  <link rel="stylesheet" href="popup.css">
+  <meta charset="UTF-8">
+</head>
+<body>
+<div id="particles-js"></div>
+<div id="mainContainer">
+
+  <h1 class="title">🎲 Buff Scout 🎲</h1>
+
+  <div class="spacer"></div>
+  
+  <div class="inputRow">
+    <div class="inputGroup">
+      <!-- Change default return for empty in storageUtil.js -->
+      <input type="number" id="coinRatioInput" step="0.001" min="0" max="1" placeholder="e.g. 0.52.." required> 
+      <label for="coinRatioInput">Coin Ratio 0 - 1</label>
+    </div>
+
+    <div class="inputGroup">
+      <!-- Change default return for empty in storageUtil.js -->
+      <input type="number" id="supplyInput" step="1" min="0" placeholder="e.g. 30..." required>
+      <label for="supplyInput">Supply 1 - 10000</label>
+    </div>
+  </div>
+
+  <div class="spacer-below-input"></div>
+
+  <div class="toggleContainer">
+    <label class="switch">
+      <input type="checkbox" id="coinRatioToggle">
+      <span class="slider"></span>
+    </label>
+    <span class="toggle-description">Hide items below <u><i>coin ratio</i></u></span>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="toggleContainer">
+    <label class="switch">
+      <input type="checkbox" id="supplyToggle">
+      <span class="slider"></span>
+    </label>
+    <span class="toggle-description">Hide items below <u><i>supply</i></u></span>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div id="toggleExtensionWrapper" class="toggleWrapper" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+    <div style="flex-grow: 1;">
+      <div class="toggleContainer">
+        <label class="switch">
+          <input type="checkbox" id="enableExtensionToggle">
+          <span class="slider"></span>
+        </label>
+        <span class="toggle-description">Enable extension</span>
+      </div>
+    </div>
+    <div style="flex-shrink: 0;">
+      <div class="toggleContainer" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+        <button id="settingsButton" style="background: transparent; border: none; padding: 0; cursor: pointer; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+          <img src="assets/settings_64.png" alt="Info" style="width: 16px; height: 16px; filter: brightness(0) invert(1);">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+</div>
+
+  <script src="particles.min.js"></script>
+  <script src="particles-config.js"></script>
+  <script src="popup.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Buff Scout Settings</title>
+    <link rel="stylesheet" href="settings.css">
+</head>
+
+<body>
+    <div class="layout">
+        <header class="main-header">
+            <nav class="nav-list">
+                <button class="nav-item active" data-section="general">
+                    General Info
+                </button>
+                <button class="nav-item" id="how-to-use-btn">
+                    Documentation
+                </button>
+                <div class="sidebar-separator"></div>
+                <button class="nav-item" data-section="account">
+                    <img src="assets/steam_logo_png.png" alt="Steam" width="16" height="16" class="nav-icon">
+                    Account
+                </button>
+                <button class="nav-item" data-section="license">
+                    <img src="assets/key.png" alt="License" width="16" height="16" class="nav-icon">
+                    License
+                </button>
+                <button class="nav-item" id="discord-btn">
+                    <img src="assets/discord.png" alt="Discord" width="16" height="16" class="nav-icon">
+                    Discord
+                </button>
+            </nav>
+        </header>
+        
+        <main class="content">
+            <section id="section-general" class="section">
+                <div class="brand-header">
+                    <img class="brand-icon" src="assets/dice_512.png" alt="Dice Icon">
+                    <h1 class="brand-title">Buff Scout</h1>
+                </div>
+                
+                <p>Overview of market metrics such as price ratio, supply, bid/ask price and spread.</p>
+
+                <h3>✦ Ratio</h3>
+                <p>
+                    Ratio is calculated by dividing the Buff price in euros (ask price) by the number of Roll coins:<br><br>
+                    <code>Ratio = Buff price (EUR, ask) / Roll coins</code><br><br>
+                    Higher ratios indicate better value. Look for ratios above 0.49 for potential profit opportunities.
+                    This threshold is based on the ask price and may fluctuate. For more accurate evaluation, compare with other high-liquidity skins to gauge the true market ratio.
+                </p>
+
+                <h3>✦ Supply</h3>
+                <p>Supply shows how many listings are currently available on BUFF163 for that item.</p>
+
+                <h3>✦ Price</h3>
+                <p>The lowest ask price of the item on BUFF163.</p>
+            </section>
+            
+            <section id="section-account" class="section" hidden>
+
+                <div id="steam-logged-out" class="steam-auth-section">
+                    <p>Connect your Steam account to unlock premium features and manage your subscription seamlessly.</p>
+                    <div class="steam-features">
+                        <div class="feature-item">
+                            <img src="assets/checkbox.png" alt="Check" width="16" height="16">
+                            <span>All free features</span>
+                        </div>
+                        <div class="feature-item">
+                            <img src="assets/checkbox.png" alt="Check" width="16" height="16">
+                            <span>Advanced item filtering</span>
+                        </div>
+                        <div class="feature-item">
+                            <img src="assets/checkbox.png" alt="Check" width="16" height="16">
+                            <span>Prices refreshed every 1 hour</span>
+                        </div>
+                        <div class="feature-item">
+                            <img src="assets/checkbox.png" alt="Check" width="16" height="16">
+                            <span>Priority support</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-steam" id="steam-login-btn">
+                        <img src="assets/steam_logo_png.png" alt="Steam" width="20" height="20" style="filter: brightness(0) invert(1);">
+                        Sign in with Steam
+                    </button>
+                </div>
+
+                <div id="steam-logged-in" class="steam-auth-section" hidden>
+                    <div class="steam-profile-header">
+                        <img src="assets/steam_logo_png.png" alt="Steam" class="steam-logo" style="filter: brightness(0) invert(1);">
+                        <h3>Steam Account</h3>
+                    </div>
+                    <div class="steam-profile-info">
+                        <img id="steam-avatar" src="" alt="Steam Avatar" class="steam-avatar">
+                        <div class="steam-profile-details">
+                            <div class="steam-username" id="steam-username">Loading...</div>
+                            <div class="steam-status-container">
+                                <div class="steam-status" id="steam-status">Free Account</div>
+                                <div class="steam-connected-badge">
+                                    <img src="assets/checkbox.png" alt="Check" width="12" height="12">
+                                    Connected
+                                </div>
+                            </div>
+                            <div class="steam-id" id="steam-id">Steam ID: Loading...</div>
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-upgrade" id="upgrade-premium-btn">
+                            <img src="assets/dice_white_512.png" alt="Upgrade" width="16" height="16" style="filter: brightness(0) invert(1);">
+                            Upgrade to Premium
+                        </button>
+                        <button class="btn btn-outline-danger" id="steam-logout-btn">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                                <path d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                            </svg>
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-license" class="section" hidden>
+                <h2>License</h2>
+                <p>Manage your license for the extension. You can activate or deactivate the license key.</p>
+                
+                <div class="notice-box-warning">
+                    <strong>Important:</strong> Licenses are currently given to select users only. If you don't have a license key, please use Steam authentication to access premium features through subscription.
+                </div>
+
+                <h3>License Key</h3>
+                <div class="input-wrapper">
+                    <input id="license-key" class="license-input" type="text"
+                        placeholder="XXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" />
+                </div>
+                <p class="input-helper-text">Enter the license key you received when you purchased</p>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary loading-button" id="activate-license">
+                        <div class="spinner" id="spinner-activate"></div>
+                        <span class="button-text">Activate License for current Steam account</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="settings.js"></script>
+
+    <div id="toast-container" class="toast-container">
+        <!-- Toasts will be injected here dynamically -->
+    </div>
+
+</body>
+
+</html>
