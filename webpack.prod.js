@@ -6,7 +6,7 @@ module.exports = merge(commonConfig, {
     mode: 'production',
     devtool: 'source-map',
     output: {
-        path: require('path').resolve(__dirname, 'dist/prod_open'), // Separate dist directory for prod
+        path: require('path').resolve(__dirname, 'dist/prod'), // Separate dist directory for prod
     },
     optimization: {
         minimize: true, // Minify JS for production
