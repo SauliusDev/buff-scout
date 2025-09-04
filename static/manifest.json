@@ -30,6 +30,10 @@
       {
         "matches": ["https://www.csgoroll.com/*"],
         "js": ["csgoRoll.js"]
+      },
+      {
+        "matches": ["https://csgoempire.com/*"],
+        "js": ["csgoEmpire.js"]
       }
     ],
     "web_accessible_resources": [

@@ -34,7 +34,12 @@ export async function updateCurrencyRate() {
 
 export async function getItemDataByID(item) {
     const cachedItem = await StorageUtil.getItemCache(item.getFormattedName());
+    if (!cachedItem) {
+        console[getLogLevel(false)](`No cached data found for item: ${item.getFormattedName()}`);
+        throw new Error(StatusEnum.ITEM_NOT_FOUND);
+    }
     if (cachedItem) {
+        console[getLogLevel(true)](`Cached data found for item: ${item.getFormattedName()}`);
         const currencyRateData = await StorageUtil.getCurrencyRateData();
         if (!currencyRateData) throw new Error(StatusEnum.NO_CURRENCY_RATE);
         updateItemObjectByID(cachedItem, item, currencyRateData, Currency.USD, Currency.EUR);

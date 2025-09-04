@@ -6,6 +6,8 @@ module.exports = {
         background: './src/background/background.js',
         csgoRoll: './src/content/csgoRoll.js',
         csgoRollParser: './src/content/csgoRollParser.js',
+        csgoEmpire: './src/content/csgoEmpire.js',
+        csgoEmpireParser: './src/content/csgoEmpireParser.js',
         item: './src/core/item.js',
         currencyRateAPI: './src/api/currencyRateAPI.js',
         buffScoutAPI: './src/api/buffScoutAPI.js',

@@ -1,9 +1,9 @@
-import * as csgoRollParser from './csgoRollParser.js';
+import * as csgoEmpireParser from './csgoEmpireParser.js';
 import { convertObjectToItem } from '../core/dataParser.js';
 import { StatusEnum } from '../core/StatusEnum.js';
 import { getLogLevel } from '../core/logLevel.js';
 
-console[getLogLevel(true)]("csgoroll.com content script loaded");
+console[getLogLevel(true)]("csgoempire.com content script loaded");
 
 let currentObserver = null;
 let extensionEnabled = true; 
@@ -17,6 +17,7 @@ chrome.runtime.sendMessage({ action: 'getEnableExtension' }, (response) => {
         extensionEnabled = response.message;
     }
 });
+
 
 function pollForBroadcastMessages() {
     // Check if extension context is still valid before making the call
@@ -44,8 +45,8 @@ function pollForBroadcastMessages() {
                         console[getLogLevel(true)]("Prices updated notification received, success:", message.success);
                         if (message.success) {
                             if (extensionEnabled) {
-                                csgoRollParser.removeCustomHtml();
-                                csgoRollParser.unHideAllItems();
+                                csgoEmpireParser.removeCustomHtml();
+                                csgoEmpireParser.unHideAllItems();
                                 refreshLoading();
                             }
                         } else {
@@ -60,13 +61,13 @@ function pollForBroadcastMessages() {
                     case "disableExtension":
                         extensionEnabled = false;
                         console[getLogLevel(true)]("Extension disabled - cleaning up");
-                        csgoRollParser.removeCustomHtml();
-                        csgoRollParser.unHideAllItems();
+                        csgoEmpireParser.removeCustomHtml();
+                        csgoEmpireParser.unHideAllItems();
                         refreshLoading();
                         break;
                     case "updateVisibilityByFilters":
                         console[getLogLevel(true)]("Updating item visibility by filters");
-                        csgoRollParser.updateVisibilityByFilters(
+                        csgoEmpireParser.updateVisibilityByFilters(
                             message.isCoinRatioEnabled,
                             message.coinRatioThreshold,
                             message.isSupplyEnabled,
@@ -85,14 +86,14 @@ function pollForBroadcastMessages() {
 setInterval(pollForBroadcastMessages, 2000);
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console[getLogLevel(true)]("CSGORoll request: ", request.action);
+    console[getLogLevel(true)]("CSGOEmpire request: ", request.action);
     switch (request.action) {
         case "pricesUpdated":
             console[getLogLevel(true)]("Prices updated notification received, success:", request.success);
             if (request.success) {
                 if (extensionEnabled) {
-                    csgoRollParser.removeCustomHtml();
-                    csgoRollParser.unHideAllItems();
+                    csgoEmpireParser.removeCustomHtml();
+                    csgoEmpireParser.unHideAllItems();
                     refreshLoading();
                 }
             } else {
@@ -107,13 +108,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case "disableExtension":
             extensionEnabled = false;
             console[getLogLevel(true)]("Extension disabled - cleaning up");
-            csgoRollParser.removeCustomHtml();
-            csgoRollParser.unHideAllItems();
+            csgoEmpireParser.removeCustomHtml();
+            csgoEmpireParser.unHideAllItems();
             refreshLoading();
             break;
         case "updateVisibilityByFilters":
             console[getLogLevel(true)]("Updating item visibility by filters");
-            csgoRollParser.updateVisibilityByFilters(
+            csgoEmpireParser.updateVisibilityByFilters(
                 request.isCoinRatioEnabled,
                 request.coinRatioThreshold,
                 request.isSupplyEnabled,
@@ -140,34 +141,44 @@ function refreshLoading() {
 }
 
 function initObserver() {
-    console[getLogLevel(true)]("Initializing Observer");
+    console[getLogLevel(true)]("Initializing CSGOEmpire Observer");
 
-    let grid = ""
-    let tagName = ""
-    if (csgoRollParser.isStore()) {
-        grid = '#grid-container .cdk-virtual-scroll-content-wrapper'
-        tagName = 'CW-CSGO-MARKET-ITEM-CARD-WRAPPER'
-    } else if (csgoRollParser.isInventory()) {
-        grid = '.grid'
-        tagName = 'CW-CSGO-MARKET-ITEM-CARD'
+    let containerSelector = '';
+    let itemSelector = '';
+    
+    if (csgoEmpireParser.isMarketplace()) {
+        containerSelector = '.grid, .items-grid, [class*="grid"]';
+        itemSelector = '.relative.rounded-lg.bg-dark-3, .item-card';
+    } else if (csgoEmpireParser.isInventory()) {
+        containerSelector = '.inventory-grid, .deposit-grid, [class*="grid"]';
+        itemSelector = '.relative.rounded-lg.bg-dark-3, .item-card';
+    } else {
+        containerSelector = 'body';
+        itemSelector = '.relative.rounded-lg.bg-dark-3, .item-card';
     }
 
-    console[getLogLevel(true)]("Grid:", grid);
-    console[getLogLevel(true)]("Tag name:", tagName);
+    console[getLogLevel(true)]("Container selector:", containerSelector);
+    console[getLogLevel(true)]("Item selector:", itemSelector);
 
-    const targetContainer = document.querySelector(grid);
+    const targetContainer = document.querySelector(containerSelector) || document.body;
+    
     if (!targetContainer) {
+        console[getLogLevel(true)]("Container not found, retrying in 500ms");
         setTimeout(initObserver, 500);
         return;
     }
-
 
     currentObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach((node) => {
-                    if (node.tagName === tagName) {
-                        processItem(node);
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.matches && node.matches(itemSelector)) {
+                            processItem(node);
+                        } else {
+                            const items = node.querySelectorAll ? node.querySelectorAll(itemSelector) : [];
+                            items.forEach(item => processItem(item));
+                        }
                     }
                 });
             }
@@ -178,25 +189,27 @@ function initObserver() {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['style']
+        attributeFilter: ['style', 'class']
     });
 
-    targetContainer.querySelectorAll(tagName).forEach(node => processItem(node));
+    const existingItems = targetContainer.querySelectorAll(itemSelector);
+    console[getLogLevel(true)](`Processing ${existingItems.length} existing items`);
+    existingItems.forEach(item => processItem(item));
 }
 
 function processItem(itemDiv) {
-    if (itemDiv.querySelector('.custom-box')) {
-        console[getLogLevel(true)]("Item already processed, skipping");
+    if (!itemDiv || itemDiv.querySelector('.custom-box')) {
+        console[getLogLevel(true)]("Item already processed or invalid, skipping");
         return;
     }
 
-    const item = csgoRollParser.extractItemDetails(itemDiv);
+    const item = csgoEmpireParser.extractItemDetails(itemDiv);
     if (!item) {
-        console[getLogLevel(false)]("Failed to extract store item details");
+        console[getLogLevel(false)]("Failed to extract CSGOEmpire item details");
         return;
     }
     
-    console[getLogLevel(true)]("Extracted store item:", item);
+    console[getLogLevel(true)]("Extracted CSGOEmpire item:", item);
     updateItemPrice(itemDiv, item);
 }
 
@@ -208,11 +221,10 @@ function updateItemPrice(div, item) {
     
     div.setAttribute('data-processing', 'true');
     
-    // Check if extension context is still valid
     if (!chrome.runtime || !chrome.runtime.sendMessage) {
         console[getLogLevel(false)]("Extension context invalidated, cannot process item");
         div.removeAttribute('data-processing');
-        csgoRollParser.createCustomBox(div, "Extension disconnected, please refresh page", 'error');
+        csgoEmpireParser.createCustomBox(div, "Extension disconnected, please refresh page", 'error');
         return;
     }
     
@@ -221,51 +233,49 @@ function updateItemPrice(div, item) {
             action: 'updateItemPrice',
             message: item
         }, (response) => {
-            // Remove loading state
             div.removeAttribute('data-processing');
             
             if (chrome.runtime.lastError) {
                 const errorMessage = chrome.runtime.lastError.message;
                 console[getLogLevel(false)]("Chrome runtime error:", errorMessage);
                 
-                // Handle specific extension context invalidated error
                 if (errorMessage.includes('Extension context invalidated') || 
                     errorMessage.includes('message port closed') ||
                     errorMessage.includes('receiving end does not exist')) {
-                    csgoRollParser.createCustomBox(div, "Extension disconnected, please refresh page", 'error');
+                    csgoEmpireParser.createCustomBox(div, "Extension disconnected, please refresh page", 'error');
                 } else {
-                    csgoRollParser.createCustomBox(div, "Error updating prices... ", 'info');
+                    csgoEmpireParser.createCustomBox(div, "Error updating prices... ", 'info');
                 }
                 return;
             }
             
             if (!response) {
-                csgoRollParser.createCustomBox(div, "Error updating prices... ", 'info');
+                csgoEmpireParser.createCustomBox(div, "Error updating prices... ", 'info');
                 console[getLogLevel(false)]("No response received from background script");
                 return;
             }
 
             if (!response.success && response.message === StatusEnum.ITEM_NOT_FOUND) {
                 console[getLogLevel(true)]("Item not found:", response.message);
-                csgoRollParser.createCustomBox(div, "Item not found", 'info');
+                csgoEmpireParser.createCustomBox(div, "Item not found", 'info');
                 return;
             }
             
             if (!response.success && response.message === StatusEnum.PRICES_EXPIRED) {
                 console[getLogLevel(true)]("Prices are expired:", response.message);
-                csgoRollParser.createCustomBox(div,  "Prices are updating... ⏳", 'info');
+                csgoEmpireParser.createCustomBox(div,  "Prices are updating... ⏳", 'info');
                 return;
             }
 
             if (!response.success) {
                 console[getLogLevel(true)]("Unknown error:", response.message);
-                csgoRollParser.createCustomBox(div,  "Uknown error, reload the page", 'info');
+                csgoEmpireParser.createCustomBox(div,  "Uknown error, reload the page", 'info');
                 return;
             }
             
             console[getLogLevel(true)]("Received item data from background:", response);
             
-            csgoRollParser.updateItem(
+            csgoEmpireParser.updateItem(
                 div,
                 convertObjectToItem(response.item),
                 response.isCoinRatioEnabled,
@@ -277,6 +287,13 @@ function updateItemPrice(div, item) {
     } catch (error) {
         console[getLogLevel(false)]("Error sending message to background:", error.message);
         div.removeAttribute('data-processing');
-        csgoRollParser.createCustomBox(div, "Extension disconnected, please refresh page", 'error');
+        csgoEmpireParser.createCustomBox(div, "Extension disconnected, please refresh page", 'error');
     }
 }
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initObserver);
+} else {
+    initObserver();
+}
+
