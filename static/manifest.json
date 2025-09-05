@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Buff Scout",
     "version": "3.1.2",
-    "description": "See the Buff163 prices of CS skins on CSGORoll.com",
+    "description": "See the Buff163 prices of CS skins on CSGORoll.com and CSGOEmpire.com",
     "author": "saulius.d3v",
     "options_page": "settings.html",
     "permissions": [
