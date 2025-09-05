@@ -7,7 +7,7 @@
     "options_page": "settings.html",
     "permissions": [
       "storage",
-      "webNavigation"
+      "activeTab"
     ],
     "host_permissions": [
       "*://*.csgoroll.com/*",

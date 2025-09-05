@@ -1,4 +1,4 @@
-const debugMode = true; // Set to true for debugging, false for production
+const debugMode = false; // Set to true for debugging, false for production
 
 export function getLogLevel(success) {
     if (success === true) {

@@ -177,7 +177,7 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
             }
             isUpdatingVisibilityByFilters = true;
             try {
-                await broadcastToCsgorollTabs({
+                await broadcastToSupportedTabs({
                     action: 'updateVisibilityByFilters',
                     isCoinRatioEnabled: request.isCoinRatioEnabled,
                     coinRatioThreshold: request.coinRatioThreshold,
@@ -200,7 +200,7 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
             }
             isDisablingScout = true;
             try {
-                await broadcastToCsgorollTabs({ action: request.action }, sender.tab);
+                await broadcastToSupportedTabs({ action: request.action }, sender.tab);
                 await repository.saveEnableExtension(false);
                 sendResponse({ success: true });
             } catch (error) {
@@ -218,7 +218,7 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
             }
             isEnablingScout = true;
             try {
-                await broadcastToCsgorollTabs({ action: request.action }, sender.tab);
+                await broadcastToSupportedTabs({ action: request.action }, sender.tab);
                 await repository.saveEnableExtension(true);
                 sendResponse({ success: true });
             } catch (error) {
@@ -466,38 +466,142 @@ async function handleRequest(request, sender, sendResponse, isHeavy) {
     }
 }
 
-// Store broadcast messages for content scripts to retrieve
 let pendingBroadcastMessage = null;
+let activeTabId = null;
+let activeTabUrl = null;
 
-async function broadcastToCsgorollTabs(message, senderTab = null) {
-    // Store the message for content scripts to retrieve
+(async () => {
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length > 0) {
+            activeTabId = tabs[0].id;
+            activeTabUrl = tabs[0].url;
+            console[getLogLevel(true)]("Initial active tab:", activeTabUrl);
+        }
+    } catch (error) {
+        console[getLogLevel(false)]("Error getting initial active tab:", error.message);
+    }
+})();
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    try {
+        const tab = await chrome.tabs.get(activeInfo.tabId);
+        activeTabId = tab.id;
+        activeTabUrl = tab.url;
+        console[getLogLevel(true)]("Active tab changed:", activeTabUrl);
+        if (isSupportedSite(activeTabUrl)) {
+            const siteName = activeTabUrl.includes("csgoroll.com") ? "CSGORoll" : "CSGOEmpire";
+            console[getLogLevel(true)](`Syncing settings and triggering refresh for ${siteName} tab`);
+            chrome.tabs.sendMessage(activeInfo.tabId, {
+                action: 'urlChanged',
+            }).catch(error => {
+                console[getLogLevel(false)]("Failed to send URL change message:", error.message);
+            });
+            await syncSettingsToActiveTab(activeInfo.tabId);
+        }
+    } catch (error) {
+        console[getLogLevel(false)]("Error getting active tab info:", error.message);
+        activeTabId = null;
+        activeTabUrl = null;
+    }
+});
+
+// Listen for tab updates (URL changes in same tab)
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (tabId === activeTabId && changeInfo.url) {
+        activeTabUrl = changeInfo.url;
+        if (isSupportedSite(changeInfo.url)) {
+            const siteName = changeInfo.url.includes("csgoroll.com") ? "CSGORoll" : "CSGOEmpire";
+            console[getLogLevel(true)](`URL changed on ${siteName} tab:`, changeInfo.url);
+            chrome.tabs.sendMessage(tabId, {
+                action: 'urlChanged',
+            }).catch(error => {
+                console[getLogLevel(false)]("Failed to send URL change message:", error.message);
+            });
+            await syncSettingsToActiveTab(tabId);
+            updatePrices();
+        }
+    }
+});
+
+function isSupportedSite(url) {
+    if (!url) return false;
+    return url.includes('csgoroll.com') || url.includes('csgoempire.com');
+}
+
+async function sendToActiveTab(message) {
+    if (!activeTabId || !activeTabUrl || !isSupportedSite(activeTabUrl)) {
+        console[getLogLevel(true)]("Active tab is not a supported site, skipping direct message");
+        return false;
+    }
+    try {
+        await chrome.tabs.sendMessage(activeTabId, message);
+        console[getLogLevel(true)]("Message sent to active tab:", message.action);
+        return true;
+    } catch (error) {
+        console[getLogLevel(false)]("Failed to send message to active tab:", error.message);
+        return false;
+    }
+}
+
+async function syncSettingsToActiveTab(tabId) {
+    try {
+        const extensionEnabled = await repository.getEnableExtension();
+        if (extensionEnabled) {
+            chrome.tabs.sendMessage(tabId, {
+                action: 'enableExtension'
+            }).catch(error => {
+                console[getLogLevel(false)]("Failed to sync enable state:", error.message);
+            });
+        } else {
+            chrome.tabs.sendMessage(tabId, {
+                action: 'disableExtension'
+            }).catch(error => {
+                console[getLogLevel(false)]("Failed to sync disable state:", error.message);
+            });
+            return; // If extension is disabled, no need to sync other settings
+        }
+        const authStatus = await repository.getCachedUserAuthStatus();
+        if (authStatus.plan === 'Pro') {
+            const isCoinRatioEnabled = await repository.getHideItemsBelowCoinRatio();
+            const coinRatioThreshold = await repository.getCoinRatio();
+            const isSupplyEnabled = await repository.getHideItemsBelowSupply();
+            const supplyThreshold = await repository.getSupply();
+            chrome.tabs.sendMessage(tabId, {
+                action: 'updateVisibilityByFilters',
+                isCoinRatioEnabled: isCoinRatioEnabled,
+                coinRatioThreshold: coinRatioThreshold,
+                isSupplyEnabled: isSupplyEnabled,
+                supplyThreshold: supplyThreshold
+            }).catch(error => {
+                console[getLogLevel(false)]("Failed to sync filter settings:", error.message);
+            });
+        }
+        
+        console[getLogLevel(true)]("Settings synced to tab:", tabId);
+    } catch (error) {
+        console[getLogLevel(false)]("Error syncing settings to tab:", error.message);
+    }
+}
+
+async function broadcastToSupportedTabs(message, senderTab = null) {
     pendingBroadcastMessage = message;
     
     // If we have a sender tab (user triggered action) send directly to that tab
-    if (senderTab && senderTab.id && senderTab.url && senderTab.url.includes("csgoroll.com")) {
+    if (senderTab && senderTab.id && senderTab.url && isSupportedSite(senderTab.url)) {
         try {
-            chrome.tabs.sendMessage(senderTab.id, message);
+            await chrome.tabs.sendMessage(senderTab.id, message);
+            console[getLogLevel(true)]("Message sent to sender tab:", senderTab.url);
         } catch (error) {
             console[getLogLevel(false)]("Failed to send message to sender tab:", error.message);
         }
+    } else {
+        // For automatic updates (like price updates), send to active tab if it's a supported site
+        const sent = await sendToActiveTab(message);
+        if (!sent) {
+            console[getLogLevel(true)]("No active supported tab found for broadcast message");
+        }
     }
-    
-    // For automatic updates (like price updates), content scripts will poll for updates
 }
-
-// used for instantly notifying the content script about the url change
-chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
-    if (details.url && details.url.includes("csgoroll.com")) {
-        console[getLogLevel(true)]("URL changed on CSGORoll tab:", details.url);
-
-        chrome.tabs.sendMessage(details.tabId, {
-            action: 'urlChanged',
-        }).catch(error => {
-            console[getLogLevel(false)]("Failed to send URL change message:", error.message);
-        });
-        updatePrices();
-    }
-});
 
 async function updatePrices() {
     if (isUpdatingPrices) {
@@ -523,7 +627,7 @@ async function updatePrices() {
         updateSuccess = true;
         console[getLogLevel(true)]("Prices updated, success:", updateSuccess);
         try {
-            await broadcastToCsgorollTabs({
+            await broadcastToSupportedTabs({
                 action: 'pricesUpdated',
                 success: updateSuccess
             });

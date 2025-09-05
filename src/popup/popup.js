@@ -6,6 +6,7 @@ const supplyToggle = document.getElementById('supplyToggle');
 const coinRatioToggle = document.getElementById('coinRatioToggle');
 const enableExtensionToggle = document.getElementById('enableExtensionToggle');
 const settingsButton = document.getElementById('settingsButton');
+const tradeTabNotice = document.getElementById('tradeTabNotice');
 let toggleCooldown = false;
 
 async function checkPremiumStatus() {
@@ -19,6 +20,26 @@ async function checkPremiumStatus() {
     } catch (error) {
         console[getLogLevel(false)]("Error checking premium status:", error);
         return false;
+    }
+}
+
+async function checkCurrentSite() {
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length > 0) {
+            const url = tabs[0].url;
+            return url.includes('csgoroll.com');
+        }
+        return false;
+    } catch (error) {
+        console[getLogLevel(false)]("Error checking current site:", error);
+        return false;
+    }
+}
+
+function showTradeTabNotice(show) {
+    if (tradeTabNotice) {
+        tradeTabNotice.style.display = show ? 'block' : 'none';
     }
 }
 
@@ -88,7 +109,13 @@ function updateFiltersInContentScript() {
 
 async function loadPopupData() {
     try {
-        const hasPremium = await checkPremiumStatus();
+        const [hasPremium, isOnGamblingSite] = await Promise.all([
+            checkPremiumStatus(),
+            checkCurrentSite()
+        ]);
+        
+        // Show trade tab notice only on gambling sites
+        showTradeTabNotice(isOnGamblingSite);
         
         const [
             coinRatioResponse,

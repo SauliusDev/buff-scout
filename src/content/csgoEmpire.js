@@ -18,73 +18,6 @@ chrome.runtime.sendMessage({ action: 'getEnableExtension' }, (response) => {
     }
 });
 
-
-function pollForBroadcastMessages() {
-    // Check if extension context is still valid before making the call
-    if (!chrome.runtime || !chrome.runtime.sendMessage) {
-        return;
-    }
-    
-    try {
-        chrome.runtime.sendMessage({ action: 'getPendingBroadcast' }, (response) => {
-            if (chrome.runtime.lastError) {
-                const error = chrome.runtime.lastError.message;
-                if (!error.includes('Extension context invalidated') && 
-                    !error.includes('message port closed') &&
-                    !error.includes('receiving end does not exist')) {
-                    console[getLogLevel(false)]("Error polling for broadcast messages:", error);
-                }
-                return;
-            }
-            
-            if (response && response.success && response.message) {
-                const message = response.message;
-                console[getLogLevel(true)]("Received pending broadcast message:", message.action);
-                switch (message.action) {
-                    case "pricesUpdated":
-                        console[getLogLevel(true)]("Prices updated notification received, success:", message.success);
-                        if (message.success) {
-                            if (extensionEnabled) {
-                                csgoEmpireParser.removeCustomHtml();
-                                csgoEmpireParser.unHideAllItems();
-                                refreshLoading();
-                            }
-                        } else {
-                            console[getLogLevel(false)]("Price update failed");
-                        }
-                        break;
-                    case "enableExtension": 
-                        extensionEnabled = true;
-                        console[getLogLevel(true)]("Extension enabled - processing existing items");
-                        refreshLoading();
-                        break;
-                    case "disableExtension":
-                        extensionEnabled = false;
-                        console[getLogLevel(true)]("Extension disabled - cleaning up");
-                        csgoEmpireParser.removeCustomHtml();
-                        csgoEmpireParser.unHideAllItems();
-                        refreshLoading();
-                        break;
-                    case "updateVisibilityByFilters":
-                        console[getLogLevel(true)]("Updating item visibility by filters");
-                        csgoEmpireParser.updateVisibilityByFilters(
-                            message.isCoinRatioEnabled,
-                            message.coinRatioThreshold,
-                            message.isSupplyEnabled,
-                            message.supplyThreshold
-                        );
-                        break;
-                    default:
-                        break;
-                }
-            }
-        });
-    } catch (error) {
-        // Silently handle extension context invalidation - this is expected when extension is reloaded
-    }
-}
-setInterval(pollForBroadcastMessages, 2000);
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console[getLogLevel(true)]("CSGOEmpire request: ", request.action);
     switch (request.action) {
@@ -108,9 +41,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case "disableExtension":
             extensionEnabled = false;
             console[getLogLevel(true)]("Extension disabled - cleaning up");
+            if (currentObserver) {
+                currentObserver.disconnect();
+                currentObserver = null;
+            }
             csgoEmpireParser.removeCustomHtml();
             csgoEmpireParser.unHideAllItems();
-            refreshLoading();
             break;
         case "updateVisibilityByFilters":
             console[getLogLevel(true)]("Updating item visibility by filters");
@@ -124,6 +60,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case "urlChanged":
             if (extensionEnabled) {
                 refreshLoading();
+            } else {
+                if (currentObserver) {
+                    currentObserver.disconnect();
+                    currentObserver = null;
+                }
+                csgoEmpireParser.removeCustomHtml();
+                csgoEmpireParser.unHideAllItems();
             }
             break;
         default:
@@ -143,6 +86,10 @@ function refreshLoading() {
 function initObserver() {
     console[getLogLevel(true)]("Initializing CSGOEmpire Observer");
 
+    if (currentObserver) {
+        currentObserver.disconnect();
+        currentObserver = null;
+    }
     let containerSelector = '';
     let itemSelector = '';
     

@@ -174,10 +174,6 @@ export function createCustomBox(parentDiv, content, boxType = 'data', options = 
     return customBox;
 }
 
-
-
-
-
 export function convertQualityAbbreviation(abbreviation) {
     const qualityMap = {
         'FN': 'Factory New',
